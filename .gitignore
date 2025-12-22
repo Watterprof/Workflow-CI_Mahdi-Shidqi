@@ -6,3 +6,7 @@ MLProject/telco_preprocessed/*
 
 # but KEEP this small CI dataset
 !MLProject/telco_preprocessed/telco_preprocessed.csv
+
+# MLflow runtime artifacts
+mlruns/
+MLProject/mlruns/
