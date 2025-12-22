@@ -26,7 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install mlflow scikit-learn pandas boto3
 
-      - name: Run MLflow Project (retrain)
+      - name: Run MLflow Project (retrain) - local env
         run: |
           cd MLProject
           rm -rf mlruns
