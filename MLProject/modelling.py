@@ -15,11 +15,6 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 
 def build_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
-    """
-    Preprocessor otomatis:
-    - numeric: impute median + scale
-    - categorical: impute most_frequent + onehot(handle_unknown)
-    """
     num_cols = X.select_dtypes(include=[np.number]).columns.tolist()
     cat_cols = [c for c in X.columns if c not in num_cols]
 
@@ -43,6 +38,7 @@ def build_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
     return preprocessor
 
 def main():    
+    # Menghapus hardcoded tracking uri agar mengikuti environment variable dari YAML
     mlflow.set_experiment("Telco-CI-Retrain")
 
     DATA_PATH = "telco_preprocessed/telco_preprocessed.csv"
@@ -50,10 +46,12 @@ def main():
     if not os.path.exists(DATA_PATH):
         raise FileNotFoundError(f"Dataset not found: {DATA_PATH}")
 
+    # Membaca dataset
     df = pd.read_csv(DATA_PATH)
-
+    
+    # Debugging: Memastikan file LFS terunduh dengan benar (bukan cuma pointer 3 baris)
     print(f"Dataset loaded. Shape: {df.shape}")
-    print(f"Columns found in dataset: {df.columns.tolist()}")
+    print(f"Columns found: {df.columns.tolist()}")
 
     target_candidates = ["Churn", "churn", "label", "target"]
     target_col = None
@@ -65,7 +63,7 @@ def main():
     if target_col is None:
         raise ValueError(
             f"Target column not found. Columns available: {df.columns.tolist()}. "
-            "Pastikan konfigurasi YAML sudah menggunakan 'lfs: true' dan 'git lfs pull'."
+            "Pastikan konfigurasi YAML menggunakan 'lfs: true'."
         )
 
     y = df[target_col]
@@ -114,7 +112,7 @@ def main():
             input_example=X_train.head(2),
         )
 
-        print("Training done + pipeline logged to MLflow as artifact 'model'")
+        print("Training done + pipeline logged to MLflow")
 
 if __name__ == "__main__":
     main()

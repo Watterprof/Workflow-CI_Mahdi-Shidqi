@@ -16,10 +16,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          lfs: true
+          lfs: true # Wajib untuk menarik data CSV asli dari Git LFS
 
       - name: Checkout LFS objects
-        run: git lfs pull 
+        run: git lfs pull # Memastikan file ditarik sepenuhnya
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -31,20 +31,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install mlflow scikit-learn pandas boto3
 
-      - name: Run MLflow Project (retrain) - local env
+      - name: Run MLflow Project (retrain)
         run: |
           cd MLProject
-          # Bersihkan sisa folder tracking lama agar tidak konflik
-          rm -rf mlruns
-          
-          # Inisialisasi file database jika belum ada
-          touch mlflow.db
-          
-          # Paksa MLflow menggunakan SQLite dengan path absolut agar sinkron
+          # Hapus folder lama agar tidak konflik
+          rm -rf mlruns 
+          # Paksa menggunakan SQLite
           export MLFLOW_TRACKING_URI="sqlite:///$(pwd)/mlflow.db"
-          
           mlflow run . --env-manager=local
-
-      - name: List files (Debug)
-        run: |
-          ls -R MLProject
