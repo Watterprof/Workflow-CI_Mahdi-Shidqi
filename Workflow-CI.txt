@@ -1,0 +1,23 @@
+WORKFLOW CI (Continuous Integration) – MSML
+
+Repository GitHub:
+https://github.com/Watterprof/Workflow-CI_Mahdi-Shidqi/
+
+Deskripsi:
+Repository ini berisi implementasi Workflow CI untuk project Machine Learning
+menggunakan GitHub Actions. Workflow akan berjalan otomatis setiap kali terjadi
+push ke repository.
+
+Tahapan CI:
+1. Checkout source code dari repository GitHub
+2. Setup environment Python
+3. Install dependency (requirements / conda environment)
+4. Sanity check script modelling.py
+5. Workflow dinyatakan berhasil jika semua step berjalan tanpa error
+
+Bukti:
+- GitHub Actions berhasil dijalankan (status hijau)
+- Workflow otomatis aktif setiap push
+
+Docker Hub Image:
+https://hub.docker.com/r/waterprofff/telco-api

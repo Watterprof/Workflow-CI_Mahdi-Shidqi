@@ -1,0 +1,8 @@
+# ignore all csv by default
+*.csv
+
+# ignore preprocessed folder by default
+MLProject/telco_preprocessed/*
+
+# but KEEP this small CI dataset
+!MLProject/telco_preprocessed/telco_preprocessed.csv

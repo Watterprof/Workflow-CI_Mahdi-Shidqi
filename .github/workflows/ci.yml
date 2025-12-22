@@ -1,0 +1,78 @@
+name: CI Retrain + Build Docker
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  retrain-and-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mlflow pandas numpy scikit-learn
+
+      - name: Run MLflow Project (retrain) - local env
+        run: |
+          cd MLProject
+          mlflow run . -e main --env-manager=local
+
+      - name: Build Docker image from newest MLflow run
+        run: |
+          cd MLProject
+          python - << 'PY'
+          import subprocess
+          from mlflow.tracking import MlflowClient
+
+          client = MlflowClient()
+          exps = client.search_experiments()
+          if not exps:
+              raise SystemExit("No experiments found in MLflow tracking store")
+
+          newest = None
+          for e in exps:
+              runs = client.search_runs(
+                  experiment_ids=[e.experiment_id],
+                  order_by=["attributes.start_time DESC"],
+                  max_results=1
+              )
+              if runs:
+                  r = runs[0]
+                  if (newest is None) or (r.info.start_time > newest.info.start_time):
+                      newest = r
+
+          if newest is None:
+              raise SystemExit("No MLflow runs found")
+
+          run_id = newest.info.run_id
+          print("USING RUN_ID:", run_id)
+
+          subprocess.check_call([
+              "mlflow", "models", "build-docker",
+              "-m", f"runs:/{run_id}/model",
+              "-n", "telco-model:latest"
+          ])
+          PY
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+
+      - name: Tag and Push
+        run: |
+          docker tag telco-model:latest ${{ secrets.DOCKERHUB_USERNAME }}/telco-model:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/telco-model:latest

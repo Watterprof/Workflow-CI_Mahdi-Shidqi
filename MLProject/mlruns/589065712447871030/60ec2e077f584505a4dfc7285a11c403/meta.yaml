@@ -1,0 +1,14 @@
+artifact_uri: file:C:/Users/Asus/Downloads/Workflow-CI/MLProject/mlruns/589065712447871030/60ec2e077f584505a4dfc7285a11c403/artifacts
+end_time: 1766184815126
+entry_point_name: ''
+experiment_id: '589065712447871030'
+lifecycle_stage: active
+run_id: 60ec2e077f584505a4dfc7285a11c403
+run_name: colorful-jay-663
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1766184791158
+status: 3
+tags: []
+user_id: Asus
