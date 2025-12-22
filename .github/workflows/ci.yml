@@ -2,24 +2,21 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   train:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          lfs: true # Wajib untuk menarik data CSV asli dari Git LFS
+          lfs: true 
 
       - name: Checkout LFS objects
-        run: git lfs pull # Memastikan file ditarik sepenuhnya
+        run: git lfs pull 
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -34,9 +31,6 @@ jobs:
       - name: Run MLflow Project (retrain)
         run: |
           cd MLProject
-          # Hapus folder lama agar tidak konflik
           rm -rf mlruns 
-          # Paksa menggunakan SQLite
-          touch mlflow.db
-          export MLFLOW_TRACKING_URI="sqlite:///$(pwd)/mlflow.db"
+          export MLFLOW_TRACKING_URI="sqlite:///$(pwd)/mlflow.db" # Paksa pakai SQLite
           mlflow run . --env-manager=local

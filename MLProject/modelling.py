@@ -38,31 +38,32 @@ def build_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
         remainder="drop"
     )
 
-def main():    
-
-    mlflow.set_experiment("Telco-CI-Retrain")
+def main():
 
     DATA_PATH = "telco_preprocessed/telco_preprocessed.csv"
-    
+
     if not os.path.exists(DATA_PATH):
         raise FileNotFoundError(f"File dataset tidak ketemu di: {DATA_PATH}")
 
     df = pd.read_csv(DATA_PATH)
-
     print(f"Data terbaca: {len(df)} baris, {len(df.columns)} kolom.")
 
     target_candidates = ["Churn", "churn", "label", "target"]
     target_col = next((c for c in target_candidates if c in df.columns), None)
 
     if target_col is None:
-        raise ValueError(f"Kolom target tidak ada! Kolom tersedia: {df.columns.tolist()}.")
+        raise ValueError(f"Kolom target tidak ada!")
 
     y = df[target_col]
     X = df.drop(columns=[target_col])
 
     if y.dtype == "object" or y.dtype == "bool":
-        y = y.astype(str).str.lower().map({"yes": 1, "no": 0, "true": 1, "false": 0, "1": 1, "0": 0})
-    
+        y = y.astype(str).str.lower().map({
+            "yes": 1, "no": 0,
+            "true": 1, "false": 0,
+            "1": 1, "0": 0
+        })
+
     y = y.fillna(0).astype(int)
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -74,31 +75,26 @@ def main():
         ("model", LogisticRegression(max_iter=2000)),
     ])
 
-    with mlflow.start_run():
-        pipeline.fit(X_train, y_train)
+    pipeline.fit(X_train, y_train)
 
-        proba = pipeline.predict_proba(X_test)[:, 1]
-        pred = (proba >= 0.5).astype(int)
+    proba = pipeline.predict_proba(X_test)[:, 1]
+    pred = (proba >= 0.5).astype(int)
 
-        from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-        metrics = {
-            "accuracy": accuracy_score(y_test, pred),
-            "f1": f1_score(y_test, pred),
-            "roc_auc": roc_auc_score(y_test, proba)
-        }
+    from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+    metrics = {
+        "accuracy": accuracy_score(y_test, pred),
+        "f1": f1_score(y_test, pred),
+        "roc_auc": roc_auc_score(y_test, proba)
+    }
 
-        mlflow.log_metrics(metrics)
-        print(f"Hasil Training -> Accuracy: {metrics['accuracy']:.4f}, F1: {metrics['f1']:.4f}")
+    mlflow.log_metrics(metrics)
 
-        signature = infer_signature(X_train, pipeline.predict(X_train))
-        mlflow.sklearn.log_model(
-            sk_model=pipeline,
-            artifact_path="model",
-            signature=signature,
-            input_example=X_train.head(1),
-        )
+    signature = infer_signature(X_train, pipeline.predict(X_train))
+    mlflow.sklearn.log_model(
+        pipeline,
+        artifact_path="model",
+        signature=signature,
+        input_example=X_train.head(1),
+    )
 
-        print("Selesai! Model sudah tersimpan di MLflow.")
-
-if __name__ == "__main__":
-    main()
+    print("Training selesai & model tersimpan di MLflow")
