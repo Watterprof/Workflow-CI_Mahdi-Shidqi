@@ -28,10 +28,10 @@ jobs:
 
       - name: Run MLflow Project (retrain) - local env
         run: |
-          cd MLProject
-          rm -rf mlruns
-          export MLFLOW_TRACKING_URI=sqlite:///mlflow.db
-          mlflow run . --env-manager=local
+         cd MLProject
+         rm -rf mlruns
+         export MLFLOW_TRACKING_URI="sqlite:///$(pwd)/mlflow.db"
+         mlflow run . --env-manager=local
 
       - name: List files (Debug)
         run: |
