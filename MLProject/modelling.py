@@ -51,8 +51,8 @@ def main():
         raise FileNotFoundError(f"Dataset not found: {DATA_PATH}")
 
     df = pd.read_csv(DATA_PATH)
-    
-    # Debugging: Cetak kolom yang terbaca (Jika hanya muncul 3 baris pointer LFS, ini akan terlihat)
+
+    print(f"Dataset loaded. Shape: {df.shape}")
     print(f"Columns found in dataset: {df.columns.tolist()}")
 
     target_candidates = ["Churn", "churn", "label", "target"]
@@ -65,7 +65,7 @@ def main():
     if target_col is None:
         raise ValueError(
             f"Target column not found. Columns available: {df.columns.tolist()}. "
-            "Pastikan Git LFS sudah ditarik (git lfs pull)."
+            "Pastikan konfigurasi YAML sudah menggunakan 'lfs: true' dan 'git lfs pull'."
         )
 
     y = df[target_col]

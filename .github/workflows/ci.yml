@@ -15,6 +15,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Checkout LFS objects
+        run: git lfs pull 
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -28,10 +33,17 @@ jobs:
 
       - name: Run MLflow Project (retrain) - local env
         run: |
-         cd MLProject
-         rm -rf mlruns
-         export MLFLOW_TRACKING_URI="sqlite:///$(pwd)/mlflow.db"
-         mlflow run . --env-manager=local
+          cd MLProject
+          # Bersihkan sisa folder tracking lama agar tidak konflik
+          rm -rf mlruns
+          
+          # Inisialisasi file database jika belum ada
+          touch mlflow.db
+          
+          # Paksa MLflow menggunakan SQLite dengan path absolut agar sinkron
+          export MLFLOW_TRACKING_URI="sqlite:///$(pwd)/mlflow.db"
+          
+          mlflow run . --env-manager=local
 
       - name: List files (Debug)
         run: |
