@@ -9,7 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 
-BASE_DIR = Path(__file__).resolve().parents[1]  
+BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_PATH = BASE_DIR / "MLProject" / "telco_preprocessed" / "telco_preprocessed.csv"
 
 TMP_DIR = BASE_DIR / "MLProject" / "tmp_artifacts"
@@ -42,15 +42,20 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
+
 tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
 if tracking_uri:
     mlflow.set_tracking_uri(tracking_uri)
 
-mlflow.set_experiment("Eksperimen_SML_K2")
+run_id = os.environ.get("MLFLOW_RUN_ID")
+
 mlflow.sklearn.autolog(log_models=True)
 
 started_here = False
-if mlflow.active_run() is None:
+if run_id:
+    mlflow.start_run(run_id=run_id)
+else:
+    mlflow.set_experiment("Eksperimen_SML_K2")
     mlflow.start_run()
     started_here = True
 
@@ -85,4 +90,4 @@ finally:
     if started_here:
         mlflow.end_run()
 
-print("Training selesai. MLflow tracking URI:", mlflow.get_tracking_uri())
+print("✅ Training selesai. tracking_uri =", mlflow.get_tracking_uri(), "| run_id =", run_id)
