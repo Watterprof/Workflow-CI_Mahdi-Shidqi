@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import pandas as pd
 import mlflow
 import mlflow.sklearn
@@ -8,15 +9,13 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 
-BASE_DIR = Path(__file__).resolve().parents[1] 
+BASE_DIR = Path(__file__).resolve().parents[1]  
 DATA_PATH = BASE_DIR / "MLProject" / "telco_preprocessed" / "telco_preprocessed.csv"
 
-MLRUNS_DIR = BASE_DIR / "MLProject" / "mlruns"
 TMP_DIR = BASE_DIR / "MLProject" / "tmp_artifacts"
 TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 df = pd.read_csv(DATA_PATH)
-
 df.columns = df.columns.astype(str).str.strip()
 
 TARGET_COL = "target"
@@ -43,11 +42,19 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-mlflow.set_tracking_uri(f"file:{MLRUNS_DIR.as_posix()}")
+tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
+if tracking_uri:
+    mlflow.set_tracking_uri(tracking_uri)
+
 mlflow.set_experiment("Eksperimen_SML_K2")
 mlflow.sklearn.autolog(log_models=True)
 
-with mlflow.start_run():
+started_here = False
+if mlflow.active_run() is None:
+    mlflow.start_run()
+    started_here = True
+
+try:
     model = LogisticRegression(max_iter=1000, random_state=42)
     model.fit(X_train, y_train)
 
@@ -74,4 +81,8 @@ with mlflow.start_run():
     except Exception:
         pass
 
-print("Training selesai. Cek MLflow runs di:", MLRUNS_DIR)
+finally:
+    if started_here:
+        mlflow.end_run()
+
+print("Training selesai. MLflow tracking URI:", mlflow.get_tracking_uri())
