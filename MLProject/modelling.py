@@ -1,100 +1,77 @@
-import os
+from pathlib import Path
 import pandas as pd
-import numpy as np
 import mlflow
 import mlflow.sklearn
-from mlflow.models import infer_signature
+
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.impute import SimpleImputer
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
 
-def build_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
-    """
-    Menyiapkan data:
-    - Angka (Numeric): Isi data kosong dengan median, lalu standarisasi (scaling).
-    - Teks (Categorical): Isi data kosong dengan yang paling sering muncul, lalu ubah jadi angka (one-hot).
-    """
-    num_cols = X.select_dtypes(include=[np.number]).columns.tolist()
-    cat_cols = [c for c in X.columns if c not in num_cols]
+BASE_DIR = Path(__file__).resolve().parents[1] 
+DATA_PATH = BASE_DIR / "MLProject" / "telco_preprocessed" / "telco_preprocessed.csv"
 
-    numeric_pipe = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler())
-    ])
+MLRUNS_DIR = BASE_DIR / "MLProject" / "mlruns"
+TMP_DIR = BASE_DIR / "MLProject" / "tmp_artifacts"
+TMP_DIR.mkdir(parents=True, exist_ok=True)
 
-    categorical_pipe = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("ohe", OneHotEncoder(handle_unknown="ignore"))
-    ])
+df = pd.read_csv(DATA_PATH)
 
-    return ColumnTransformer(
-        transformers=[
-            ("num", numeric_pipe, num_cols),
-            ("cat", categorical_pipe, cat_cols),
-        ],
-        remainder="drop"
+df.columns = df.columns.astype(str).str.strip()
+
+TARGET_COL = "target"
+if TARGET_COL not in df.columns:
+    raise ValueError(
+        f"Kolom target '{TARGET_COL}' tidak ditemukan. Kolom yang ada (tail): {df.columns.tolist()[-10:]}"
     )
 
-def main():
+y = df[TARGET_COL]
+X = df.drop(columns=[TARGET_COL])
 
-    DATA_PATH = "telco_preprocessed/telco_preprocessed.csv"
+if y.dtype == "object":
+    y = y.astype(str).str.strip().str.lower().map({"yes": 1, "no": 0, "1": 1, "0": 0})
 
-    if not os.path.exists(DATA_PATH):
-        raise FileNotFoundError(f"File dataset tidak ketemu di: {DATA_PATH}")
+y = pd.to_numeric(y, errors="coerce")
+if y.isna().any():
+    raise ValueError("Kolom target berisi nilai non-numerik/invalid. Pastikan target hanya 0/1.")
 
-    df = pd.read_csv(DATA_PATH)
-    print(f"Data terbaca: {len(df)} baris, {len(df.columns)} kolom.")
+uniq = set(y.unique().tolist())
+if not uniq.issubset({0, 1}):
+    raise ValueError(f"Target harus biner 0/1. Nilai unik yang ditemukan: {sorted(list(uniq))}")
 
-    target_candidates = ["Churn", "churn", "label", "target"]
-    target_col = next((c for c in target_candidates if c in df.columns), None)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
 
-    if target_col is None:
-        raise ValueError(f"Kolom target tidak ada!")
+mlflow.set_tracking_uri(f"file:{MLRUNS_DIR.as_posix()}")
+mlflow.set_experiment("Eksperimen_SML_K2")
+mlflow.sklearn.autolog(log_models=True)
 
-    y = df[target_col]
-    X = df.drop(columns=[target_col])
+with mlflow.start_run():
+    model = LogisticRegression(max_iter=1000, random_state=42)
+    model.fit(X_train, y_train)
 
-    if y.dtype == "object" or y.dtype == "bool":
-        y = y.astype(str).str.lower().map({
-            "yes": 1, "no": 0,
-            "true": 1, "false": 0,
-            "1": 1, "0": 0
-        })
+    pred = model.predict(X_test)
+    proba = model.predict_proba(X_test)[:, 1]
 
-    y = y.fillna(0).astype(int)
+    mlflow.log_metric("accuracy_manual", accuracy_score(y_test, pred))
+    mlflow.log_metric("f1_manual", f1_score(y_test, pred))
+    mlflow.log_metric("roc_auc_manual", roc_auc_score(y_test, proba))
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+    cm_path = TMP_DIR / "confusion_matrix.png"
+    fig, ax = plt.subplots()
+    ConfusionMatrixDisplay.from_predictions(y_test, pred, ax=ax)
+    plt.tight_layout()
+    fig.savefig(cm_path, dpi=150)
+    plt.close(fig)
+    mlflow.log_artifact(str(cm_path))
 
-    pipeline = Pipeline(steps=[
-        ("preprocess", build_preprocessor(X_train)),
-        ("model", LogisticRegression(max_iter=2000)),
-    ])
+    est_path = TMP_DIR / "estimator.html"
+    try:
+        html = model._repr_html_()
+        est_path.write_text(html, encoding="utf-8")
+        mlflow.log_artifact(str(est_path))
+    except Exception:
+        pass
 
-    pipeline.fit(X_train, y_train)
-
-    proba = pipeline.predict_proba(X_test)[:, 1]
-    pred = (proba >= 0.5).astype(int)
-
-    from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-    metrics = {
-        "accuracy": accuracy_score(y_test, pred),
-        "f1": f1_score(y_test, pred),
-        "roc_auc": roc_auc_score(y_test, proba)
-    }
-
-    mlflow.log_metrics(metrics)
-
-    signature = infer_signature(X_train, pipeline.predict(X_train))
-    mlflow.sklearn.log_model(
-        pipeline,
-        artifact_path="model",
-        signature=signature,
-        input_example=X_train.head(1),
-    )
-
-    print("Training selesai & model tersimpan di MLflow")
+print("Training selesai. Cek MLflow runs di:", MLRUNS_DIR)
